@@ -14,7 +14,7 @@ let scene, camera, renderer, textCanvas, textCtx, particleGeometry, particleMate
 let leafInstancedMesh, leafMaterial;
 
 // String to show
-let string = "leaf";
+let string = "leaves";
 
 // Coordinates data per 2D canvas and 3D scene
 let textureCoordinates = [];
@@ -38,13 +38,8 @@ render();
 // ---------------------------------------------------------------
 
 function init() {
-  camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-  );
-  camera.position.set(0, 0, 18);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, .1, 1000);
+  camera.position.set(0,0,18);
 
   scene = new THREE.Scene();
 
@@ -71,6 +66,7 @@ function init() {
       depthTest: false,
       transparent: true,
   });
+
 
   dummy = new THREE.Object3D();
   clock = new THREE.Clock();
@@ -113,6 +109,7 @@ function refreshText() {
   createInstancedMesh();
   updateParticlesMatrices();
 }
+
 
 // ---------------------------------------------------------------
 // Input string to textureCoordinates
@@ -167,18 +164,15 @@ function sampleCoordinates() {
 
 function createInstancedMesh() {
   scene.remove(leafInstancedMesh);
-    const totalNumberOfLeafs = particles.length;
-    leafInstancedMesh = new THREE.InstancedMesh(particleGeometry, leafMaterial, totalNumberOfLeafs);
-    scene.add(leafInstancedMesh);
+  const totalNumberOfLeafs = particles.length;
+  leafInstancedMesh = new THREE.InstancedMesh(particleGeometry, leafMaterial, totalNumberOfLeafs);
+  scene.add(leafInstancedMesh);
 
-    let leafIdx = 0;
-    particles.forEach(p => {
-      leafInstancedMesh.setColorAt(leafIdx, new THREE.Color("hsl(" + p.color + ", 100%, 20%)"));
-      leafIdx ++;
-    })
-
-  leafInstancedMesh.position.x = -.5 * stringBox.wScene;
-  leafInstancedMesh.position.y = -.5 * stringBox.hScene;
+  let leafIdx = 0;
+  particles.forEach(p => {
+    leafInstancedMesh.setColorAt(leafIdx, new THREE.Color("hsl(" + p.color + ", 100%, 20%)"));
+    leafIdx++;
+  })
 }
 
 
