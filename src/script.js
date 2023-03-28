@@ -6,11 +6,12 @@ const containerEl = document.querySelector(".webgl");
 
 // Settings
 const fontName = "Verdana";
-const textureFontSize = 20;
-const fontScaleFactor = 0.5;
+const textureFontSize = 70;
+const fontScaleFactor = .075;
 
 // 3D scene related globals
 let scene, camera, renderer, textCanvas, textCtx, particleGeometry, particleMaterial, instancedMesh, dummy, clock;
+let leafInstancedMesh, leafMaterial;
 
 // String to show
 let string = "leaf";
@@ -38,12 +39,12 @@ render();
 
 function init() {
   camera = new THREE.PerspectiveCamera(
-    45,
+    75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    100
   );
-  camera.position.set(0, 0, 100);
+  camera.position.set(0, 0, 18);
 
   scene = new THREE.Scene();
 
@@ -51,7 +52,7 @@ function init() {
     alpha: true,
     canvas: containerEl
   });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const orbit = new OrbitControls(camera, renderer.domElement);
@@ -62,8 +63,14 @@ function init() {
   textCtx = textCanvas.getContext("2d");
 
   // Instanced geometry and material
-  particleGeometry = new THREE.TorusGeometry(0.35, 0.15, 16, 50);
-  particleMaterial = new THREE.MeshNormalMaterial({});
+  particleGeometry = new THREE.PlaneGeometry(1.2, 1.2);
+  const leafTexture = new THREE.TextureLoader().load('leaf.png');
+  leafMaterial = new THREE.MeshBasicMaterial({
+      alphaMap: leafTexture,
+      opacity: .35,
+      depthTest: false,
+      transparent: true,
+  });
 
   dummy = new THREE.Object3D();
   clock = new THREE.Clock();
@@ -91,17 +98,17 @@ function render() {
 
 function refreshText() {
   sampleCoordinates();
-  textureCoordinates = textureCoordinates.map((c) => {
-    return { x: c.x * fontScaleFactor, y: c.y * fontScaleFactor };
-  });
-  const maxX = textureCoordinates.map((v) => v.x).sort((a, b) => b - a)[0];
-  const maxY = textureCoordinates.map((v) => v.y).sort((a, b) => b - a)[0];
-  stringBox.wScene = maxX;
-  stringBox.hScene = maxY;
 
-  particles = textureCoordinates.map(c => 
-    new Particle([c.x * fontScaleFactor, c.y * fontScaleFactor])
-  );
+  particles = textureCoordinates.map((c, cIdx) => {
+    const x = c.x * fontScaleFactor;
+    const y = c.y * fontScaleFactor;
+    let p = (c.old && particles[cIdx]) ? particles[cIdx] : new Leaf([x, y]);
+    if (c.toDelete) {
+        p.toDelete = true;
+        p.scale = p.maxScale;
+    }
+    return p;
+});
 
   createInstancedMesh();
   updateParticlesMatrices();
@@ -122,7 +129,7 @@ function sampleCoordinates() {
   const linesNumber = lines.length;
   textCanvas.width = stringBox.wTexture;
   textCanvas.height = stringBox.hTexture;
-  textCtx.font = "100 " + textureFontSize + "px " + fontName;
+  textCtx.font = "10 " + textureFontSize + "px " + fontName;
   textCtx.fillStyle = "#2a9d8f";
   textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
   for (let i = 0; i < linesNumber; i++) {
@@ -159,51 +166,72 @@ function sampleCoordinates() {
 // Handle points
 
 function createInstancedMesh() {
-  instancedMesh = new THREE.InstancedMesh(particleGeometry, particleMaterial, textureCoordinates.length);
-  scene.add(instancedMesh);
+  scene.remove(leafInstancedMesh);
+    const totalNumberOfLeafs = particles.length;
+    leafInstancedMesh = new THREE.InstancedMesh(particleGeometry, leafMaterial, totalNumberOfLeafs);
+    scene.add(leafInstancedMesh);
 
-  // centralize it in the same way as before
-  instancedMesh.position.x = -.5 * stringBox.wScene;
-  instancedMesh.position.y = -.5 * stringBox.hScene;
+    let leafIdx = 0;
+    particles.forEach(p => {
+      leafInstancedMesh.setColorAt(leafIdx, new THREE.Color("hsl(" + p.color + ", 100%, 20%)"));
+      leafIdx ++;
+    })
+
+  leafInstancedMesh.position.x = -.5 * stringBox.wScene;
+  leafInstancedMesh.position.y = -.5 * stringBox.hScene;
 }
 
 
 function updateParticlesMatrices() {
-  let idx = 0;
-  // textureCoordinates.forEach(p => {
-    particles.forEach(p => {
-
-      // update particles data
+  let leafIdx = 0;
+  particles.forEach(p => {
       p.grow();
-
-      // we apply samples coordinates like before + some random rotation
-      // dummy.rotation.set(2 * Math.random(), 2 * Math.random(), 2 * Math.random());
-      dummy.rotation.set(p.rotationX, p.rotationY, p.rotationZ);
+      dummy.quaternion.copy(camera.quaternion);
+      dummy.rotation.z += p.rotationZ;
       dummy.scale.set(p.scale, p.scale, p.scale);
       dummy.position.set(p.x, stringBox.hScene - p.y, p.z);
       dummy.updateMatrix();
-      instancedMesh.setMatrixAt(idx, dummy.matrix);
-      idx ++;
+      leafInstancedMesh.setMatrixAt(leafIdx, dummy.matrix);
+      leafIdx ++;
   })
-  instancedMesh.instanceMatrix.needsUpdate = true;
+  leafInstancedMesh.instanceMatrix.needsUpdate = true;
 }
 
-function Particle([x, y]) {
-  this.x = x;
-  this.y = y;
-  this.z = 0;
-  this.rotationX = Math.random() * 2 * Math.PI;
-  this.rotationY = Math.random() * 2 * Math.PI;
-  this.rotationZ = Math.random() * 2 * Math.PI;
-  this.scale = 0;
-  this.deltaRotation = .2 * (Math.random() - .5);
-  this.deltaScale = .01 + .2 * Math.random();
-  this.grow = function () {
-      this.rotationX += this.deltaRotation;
-      this.rotationY += this.deltaRotation;
-      this.rotationZ += this.deltaRotation;
-      if (this.scale < 1) {
-          this.scale += this.deltaScale;
-      }
-  }
+function Leaf([x, y]) {
+    this.x = x + .2 * (Math.random() - .5);
+    this.y = y + .2 * (Math.random() - .5);
+    this.z = 0;
+
+    this.color = 100 + Math.random() * 50;
+
+    this.isGrowing = true;
+    this.toDelete = false;
+
+    this.scale = 0;
+    this.maxScale = .9 * Math.pow(Math.random(), 20);
+    this.deltaScale = .03 + .1 * Math.random();
+    this.age = Math.PI * Math.random();
+    this.ageDelta = .01 + .02 * Math.random();
+    this.rotationZ = .5 * Math.random() * Math.PI;
+
+    this.grow = function () {
+        this.age += this.ageDelta;
+        if (this.isGrowing) {
+            this.deltaScale *= .99;
+            this.scale += this.deltaScale;
+            if (this.scale >= this.maxScale) {
+                this.isGrowing = false;
+            }
+        } else if (this.toDelete) {
+            this.deltaScale *= 1.1;
+            this.scale -= this.deltaScale;
+            if (this.scale <= 0) {
+                this.scale = 0;
+                this.deltaScale = 0;
+            }
+        } else {
+            this.scale = this.maxScale + .2 * Math.sin(this.age);
+            this.rotationZ += .001 * Math.cos(this.age);
+        }
+    }
 }
