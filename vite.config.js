@@ -4,7 +4,7 @@ const isCodeSandbox =
 export default {
   root: 'src/',
   publicDir: '../static/',
-  base: '/threejs-journey-basic-playground',
+  base: '/threejs-leaf-playground',
   server: {
     host: true,
     open: !isCodeSandbox, // Open if it's not a CodeSandbox
