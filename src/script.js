@@ -51,7 +51,7 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const orbit = new OrbitControls(camera, renderer.domElement);
-  orbit.enablePan = false;
+  orbit.enableDamping = true;
 
   textCanvas = document.createElement("canvas");
   textCanvas.width = textCanvas.height = 0;
