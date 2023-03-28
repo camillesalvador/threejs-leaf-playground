@@ -1,0 +1,19 @@
+{
+  "name": "threejs-leaf-playground",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "^4.0.4"
+  },
+  "dependencies": {
+    "lil-gui": "^0.17.0",
+    "three": "^0.148.0"
+  },
+  "author": "Camille Salvador",
+  "license": "ISC"
+}
