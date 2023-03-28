@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import * as dat from 'lil-gui';
 
 // DOM selectors
 const containerEl = document.querySelector(".webgl");
@@ -14,7 +15,11 @@ let scene, camera, renderer, textCanvas, textCtx, particleGeometry, particleMate
 let leafInstancedMesh, leafMaterial;
 
 // String to show
-let string = "leaves";
+const obj = {
+  string: "leaves"
+};
+
+const gui = new dat.GUI();
 
 // Coordinates data per 2D canvas and 3D scene
 let textureCoordinates = [];
@@ -39,7 +44,7 @@ render();
 
 function init() {
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, .1, 1000);
-  camera.position.set(0,0,18);
+  camera.position.set(0,0,20);
 
   scene = new THREE.Scene();
 
@@ -67,9 +72,12 @@ function init() {
       transparent: true,
   });
 
+  // GUI
+  gui.add(obj, 'string').onFinishChange(refreshText);
 
   dummy = new THREE.Object3D();
   clock = new THREE.Clock();
+
 }
 
 // ---------------------------------------------------------------
@@ -116,7 +124,7 @@ function refreshText() {
 
 function sampleCoordinates() {
   // Parse text
-  const lines = string.split(`\n`);
+  const lines = obj.string.split('\n');
   const linesMaxLength = [...lines].sort((a, b) => b.length - a.length)[0]
     .length;
   stringBox.wTexture = textureFontSize * 0.7 * linesMaxLength;
@@ -168,6 +176,8 @@ function createInstancedMesh() {
   leafInstancedMesh = new THREE.InstancedMesh(particleGeometry, leafMaterial, totalNumberOfLeafs);
   scene.add(leafInstancedMesh);
 
+  leafInstancedMesh.position.set(-9, 2, 0);
+
   let leafIdx = 0;
   particles.forEach(p => {
     leafInstancedMesh.setColorAt(leafIdx, new THREE.Color("hsl(" + p.color + ", 100%, 20%)"));
@@ -186,7 +196,7 @@ function updateParticlesMatrices() {
       dummy.position.set(p.x, stringBox.hScene - p.y, p.z);
       dummy.updateMatrix();
       leafInstancedMesh.setMatrixAt(leafIdx, dummy.matrix);
-      leafIdx ++;
+      leafIdx++;
   })
   leafInstancedMesh.instanceMatrix.needsUpdate = true;
 }
